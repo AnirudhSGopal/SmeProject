@@ -1,5 +1,5 @@
-// src/pages/ca/Dashboard.tsx
-import React, { useMemo, useState, useEffect } from "react";
+// src/pages/ca/CADashboard.tsx
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 type InvoiceStatus = "Pending" | "For Review" | "Approved" | "Filed" | "Rejected";
@@ -49,16 +49,27 @@ export default function CADashboard() {
   const [searchResults, setSearchResults] = useState<{ invoices: Invoice[]; clients: Client[]; chats: ChatMessage[] } | null>(null);
   const [showSearchPanel, setShowSearchPanel] = useState(false);
 
+  const handleSearch = useCallback((term?: string) => {
+    const t = (term ?? query).trim().toLowerCase();
+    if (!t) { setSearchResults(null); setShowSearchPanel(false); return; }
+    const invs = invoices.filter(i => i.id.toLowerCase().includes(t) || i.client.toLowerCase().includes(t) || (i.invoiceNumber || "").toLowerCase().includes(t));
+    const cl = clients.filter(c => c.name.toLowerCase().includes(t) || (c.gstin || "").toLowerCase().includes(t));
+    const ch = chats.filter(m => m.text.toLowerCase().includes(t) || (m.invoiceId || "").toLowerCase().includes(t));
+    setSearchResults({ invoices: invs, clients: cl, chats: ch });
+    setShowSearchPanel(true);
+  }, [query, invoices, clients, chats]);
+
   useEffect(() => {
-    const onAppSearch = (e: any) => {
-      const term = (e?.detail ?? "").toString();
+    const onAppSearch = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      const term = (customEvent?.detail ?? "").toString();
       setQuery(term);
       if (!term.trim()) { setSearchResults(null); setShowSearchPanel(false); return; }
       handleSearch(term);
     };
     window.addEventListener("app:search", onAppSearch);
     return () => window.removeEventListener("app:search", onAppSearch);
-  }, [invoices, clients, chats]);
+  }, [invoices, clients, chats, handleSearch]);
 
   const totals = useMemo(() => {
     const toReview = invoices.filter(i => i.status === "For Review").length;
@@ -72,41 +83,31 @@ export default function CADashboard() {
   };
 
   // actions
-  const assignTo = (invoiceId: string, user: string) => {
+  const assignTo = useCallback((invoiceId: string, user: string) => {
     setInvoices(prev => prev.map(i => i.id === invoiceId ? { ...i, assignedTo: user } : i));
     pushNotifLocal(`Assigned ${invoiceId} → ${user}`);
-  };
-  const requestFix = (invoiceId: string, note?: string) => {
+  }, []);
+  const requestFix = useCallback((invoiceId: string, note?: string) => {
     setInvoices(prev => prev.map(i => i.id === invoiceId ? { ...i, status: "Pending", errors: [...(i.errors || []), note || "Requested clarification"] } : i));
     pushNotifLocal(`Requested fix for ${invoiceId}`);
-  };
-  const approveAndMarkForFiling = (invoiceId: string) => {
+  }, []);
+  const approveAndMarkForFiling = useCallback((invoiceId: string) => {
     setInvoices(prev => prev.map(i => i.id === invoiceId ? { ...i, status: "Approved" } : i));
     pushNotifLocal(`${invoiceId} approved — ready for filing`);
-  };
-  const markFiled = (invoiceId: string) => {
+  }, []);
+  const markFiled = useCallback((invoiceId: string) => {
     setInvoices(prev => prev.map(i => i.id === invoiceId ? { ...i, status: "Filed" } : i));
     pushNotifLocal(`${invoiceId} marked filed`);
-  };
-
-  function handleSearch(term?: string) {
-    const t = (term ?? query).trim().toLowerCase();
-    if (!t) { setSearchResults(null); setShowSearchPanel(false); return; }
-    const invs = invoices.filter(i => i.id.toLowerCase().includes(t) || i.client.toLowerCase().includes(t) || (i.invoiceNumber || "").toLowerCase().includes(t));
-    const cl = clients.filter(c => c.name.toLowerCase().includes(t) || (c.gstin || "").toLowerCase().includes(t));
-    const ch = chats.filter(m => m.text.toLowerCase().includes(t) || (m.invoiceId || "").toLowerCase().includes(t));
-    setSearchResults({ invoices: invs, clients: cl, chats: ch });
-    setShowSearchPanel(true);
-  }
+  }, []);
 
   // When clicking a row or heading — route to full page:
   const goToFullQueue = () => navigate("/ca/review-queue");
   const goToFullClients = () => navigate("/ca/clients");
-  const goToInvoiceFull = (invoiceId?: string) => {
+  const goToInvoiceFull = useCallback((invoiceId?: string) => {
     // navigate to invoice-review page; pass invoice id as query
     if (invoiceId) navigate(`/ca/invoice-review?invoice=${encodeURIComponent(invoiceId)}`);
     else navigate("/ca/invoice-review");
-  };
+  }, [navigate]);
 
   const visibleInvoices = invoices.filter(i => {
     if (filter === "All") return true;
@@ -116,9 +117,11 @@ export default function CADashboard() {
     return true;
   });
 
+  const [now] = useState(() => Date.now());
+
   const daysUntil = (iso?: string) => {
     if (!iso) return "";
-    const d = Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    const d = Math.ceil((new Date(iso).getTime() - now) / (1000 * 60 * 60 * 24));
     if (d < 0) return `${Math.abs(d)}d overdue`;
     return `${d}d`;
   };
@@ -133,7 +136,7 @@ export default function CADashboard() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected]);
+  }, [selected, approveAndMarkForFiling, assignTo, goToInvoiceFull]);
 
   return (
     <div className="min-h-[70vh]">
@@ -235,7 +238,7 @@ export default function CADashboard() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="text-xs text-slate-400">Filter:</div>
-                <select value={filter} onChange={(e) => setFilter(e.target.value as any)} className="border px-2 py-1 rounded text-sm">
+                <select value={filter} onChange={(e) => setFilter(e.target.value as "All" | "High" | "For Review" | "Pending")} className="border px-2 py-1 rounded text-sm">
                   <option value="For Review">For Review</option>
                   <option value="Pending">Pending</option>
                   <option value="High">High</option>
@@ -304,7 +307,7 @@ export default function CADashboard() {
 
         {/* Right column */}
         <aside className="space-y-5">
-          <div className="bg-white rounded-2xl shadow border p-4 max-h-[320px] overflow-auto">
+          <div className="bg-white rounded-2xl shadow border p-4 max-h-80 overflow-auto">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold cursor-pointer" onClick={goToFullClients}>Clients</h3>
               <div className="text-xs text-slate-400">{clients.length}</div>
@@ -375,9 +378,3 @@ export default function CADashboard() {
 
 /* helpers */
 const formatCurrency = (n: number) => "₹" + n.toLocaleString();
-const daysUntil = (iso?: string) => {
-  if (!iso) return "";
-  const d = Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (d < 0) return `${Math.abs(d)}d overdue`;
-  return `${d}d`;
-};

@@ -3,6 +3,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 /* SME pages */
+import SMECompleteProfile from "./pages/sme/SMECompleteProfile.tsx";
 import DashboardView from "./pages/sme/Dashboard";
 import UploadQueue from "./pages/sme/UploadQueue";
 import InvoicesList from "./pages/sme/InvoicesList";
@@ -24,6 +25,7 @@ import CALayout from "./layouts/CALayout";
 
 /* CA pages */
 import CADashboard from "./pages/ca/CADashboard";
+import CACompleteProfile from "./pages/ca/CACompleteProfile";
 import CAClientList from "./pages/ca/ClientList";
 import CAChatList from "./pages/ca/CAChatList";
 import CAChatThread from "./pages/ca/CAChatThread";
@@ -35,13 +37,22 @@ import CAReturnsWorkbench from "./pages/ca/ReturnsWorkbench";
 import CAReviewQueue from "./pages/ca/ReviewQueue";
 import CATasks from "./pages/ca/Tasks";
 
+/* New login pages */
+import SMELogin from "./pages/sme/SMELogin";
+import CALogin from "./pages/ca/CALogin";
+
 import "./index.css"; // Tailwind CSS
 
 const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public auth routes */}
+        <Route path="/sme/login" element={<SMELogin />} />
+        <Route path="/ca/login" element={<CALogin />} />
+
         {/* SME routes — layout wraps all SME pages */}
+        <Route path="/sme/smecompleteprofile" element={<SMECompleteProfile />} />
         <Route path="/" element={<SMELayout />}>
           <Route index element={<DashboardView />} />
           <Route path="dashboard" element={<DashboardView />} />
@@ -61,11 +72,12 @@ const App: React.FC = () => {
         </Route>
 
         {/* CA routes (nested under CALayout) */}
+        <Route path="/ca/cacompleteprofile" element={<CACompleteProfile />} />
         <Route path="/ca" element={<CALayout />}>
           <Route index element={<CADashboard />} />
           <Route path="dashboard" element={<CADashboard />} />
           <Route path="clients" element={<CAClientList />} />
-          <Route path="clients/:id" element={<CAClientList />} /> {/* replace with client detail when ready */}
+          <Route path="clients/:id" element={<CAClientList />} />
           <Route path="chat" element={<CAChatList />} />
           <Route path="chat/:id" element={<CAChatThread />} />
           <Route path="invoice-review" element={<CAInvoiceReview />} />
@@ -77,8 +89,8 @@ const App: React.FC = () => {
           <Route path="settings" element={<CASettings />} />
         </Route>
 
-        {/* fallback */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* fallback -> redirect to SME dashboard (root). Change if you prefer /sme/login */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

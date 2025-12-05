@@ -50,9 +50,8 @@ export default function SMEDashboard() {
   const [team, setTeam] = useState<TeamMember[]>(demoTeam);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [query, setQuery] = useState("");
-  const [notifications, setNotifications] = useState<string[]>(["GST filing due in 5 days", "2 invoices failed extraction"]);
+  const [, setNotifications] = useState<string[]>(["GST filing due in 5 days", "2 invoices failed extraction"]);
   const [plan, setPlan] = useState({ name: "Starter", usage: 128, limit: 500, nextBilling: "2026-01-01" });
-  const [showNotif, setShowNotif] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [chatInput, setChatInput] = useState("");
 
@@ -79,23 +78,10 @@ export default function SMEDashboard() {
   }, [invoices]);
 
   const pushNotification = (text: string) => setNotifications((n) => [text, ...n].slice(0, 50));
-  const removeNotification = (idx: number) => setNotifications((n) => n.filter((_, i) => i !== idx));
-  const clearNotifications = () => setNotifications([]);
 
   const checkStatuses = () => {
     const { pending, errors, gstEstimate } = totals;
     pushNotification(`Status: ${pending} pending/processing • ${errors} errored • Est GST ₹${gstEstimate}`);
-  };
-
-  const handleFiles = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const created = Array.from(files).map((f, idx) => {
-      const id = `UP-${Date.now().toString().slice(-5)}-${idx}`;
-      const inv: Invoice = { id, smeName: "Your SME", amount: 0, status: "Processing", date: new Date().toISOString().slice(0, 10), imageUrl: URL.createObjectURL(f), lineItems: [], errors: [] };
-      return inv;
-    });
-    setInvoices((prev) => [...created, ...prev]);
-    pushNotification(`${files.length} file(s) uploaded`);
   };
 
   const approve = (id: string) => {
@@ -668,22 +654,11 @@ export default function SMEDashboard() {
   );
 }
 
-/* small components kept local to this file */
+/* small components */
 
-const StatCard: React.FC<{ title: string; value: string; subtitle?: string }> = ({ title, value, subtitle }) => (
-  <div className="bg-white rounded-2xl shadow p-4 border border-slate-100">
-    <div className="text-xs text-slate-500">{title}</div>
-    <div className="text-2xl font-semibold mt-1">{value}</div>
-    {subtitle && <div className="text-xs text-slate-400 mt-1">{subtitle}</div>}
-  </div>
-);
+const StatCard: React.FC<{ title: string; value: string; subtitle?: string }> = ({ title, value, subtitle }) => (<div className="bg-white rounded-2xl shadow p-4 border border-slate-100"><div className="text-xs text-slate-500">{title}</div><div className="text-2xl font-semibold mt-1">{value}</div>{subtitle && <div className="text-xs text-slate-400 mt-1">{subtitle}</div>}</div>);
 
-const SimpleField: React.FC<{ label: string; value: string; onChange: (v: string) => void }> = ({ label, value, onChange }) => (
-  <label className="block text-sm">
-    <div className="text-xs text-slate-500 mb-1">{label}</div>
-    <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full border border-slate-200 rounded px-2 py-2 text-sm" />
-  </label>
-);
+const SimpleField: React.FC<{ label: string; value: string; onChange: (v: string) => void }> = ({ label, value, onChange }) => (<label className="block text-sm"><div className="text-xs text-slate-500 mb-1">{label}</div><input value={value} onChange={(e) => onChange(e.target.value)} className="w-full border border-slate-200 rounded px-2 py-2 text-sm" /></label>);
 
 const AddMemberForm: React.FC<{ onAdd: (name: string, email: string, role: "Owner" | "Member") => boolean | void }> = ({ onAdd }) => {
   const [name, setName] = useState("");
